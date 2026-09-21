@@ -1,11 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { PenLine, BarChart3, MessageCircle, Settings, Trophy, LogOut } from 'lucide-react';
+import { PenLine, BarChart3, MessageCircle, Settings, Trophy, LogOut, Users } from 'lucide-react';
 import { useUser } from '@/context/UserContext';
 import { TEAM_CONFIG } from '@/lib/types';
 
 const NAV_ITEMS = [
   { to: '/', icon: Trophy, label: 'Home', adminOnly: false },
   { to: '/leaderboard', icon: BarChart3, label: 'Board', adminOnly: false },
+  { to: '/stats', icon: Users, label: 'Stats', adminOnly: false },
   { to: '/scoring', icon: PenLine, label: 'Score', adminOnly: false },
   { to: '/chat', icon: MessageCircle, label: 'Chat', adminOnly: false },
   { to: '/admin', icon: Settings, label: 'Admin', adminOnly: true },

@@ -97,10 +97,93 @@ function RoundSection({ round, players }: { round: Round; players: { id: string;
         </div>
       </div>
 
-      <div className="space-y-2">
-        {round.matches.map(match => (
-          <MatchCard key={match.id} match={match} playerName={playerName} />
-        ))}
+      {round.format === 'scramble' ? (
+        <ScrambleLeaderboard round={round} playerName={playerName} />
+      ) : (
+        <div className="space-y-2">
+          {round.matches.map(match => (
+            <MatchCard key={match.id} match={match} playerName={playerName} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScrambleLeaderboard({ round, playerName }: { round: Round; playerName: (id: string) => string }) {
+  const pairs = round.matches.flatMap(match => [
+    {
+      playerIds: match.team1.playerIds,
+      teamId: match.team1.teamId,
+      points: match.manualResult?.team1Points ?? 0,
+      total: match.holes.reduce((s, h) => s + (h.team1Score ?? 0), 0),
+      hasScores: match.holes.some(h => h.team1Score != null),
+    },
+    {
+      playerIds: match.team2.playerIds,
+      teamId: match.team2.teamId,
+      points: match.manualResult?.team2Points ?? 0,
+      total: match.holes.reduce((s, h) => s + (h.team2Score ?? 0), 0),
+      hasScores: match.holes.some(h => h.team2Score != null),
+    },
+  ]).sort((a, b) => b.points - a.points || a.total - b.total);
+
+  const coursePar = round.matches[0]?.holes.reduce((s, h) => s + h.par, 0) ?? 71;
+
+  let rank = 0;
+  let prevPoints = -1;
+  const ranked = pairs.map((p, i) => {
+    if (p.points !== prevPoints) { rank = i + 1; prevPoints = p.points; }
+    return { ...p, rank };
+  });
+
+  return (
+    <div className="bg-white rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-cream-dark/50 px-3 py-2 flex items-center justify-between">
+        <span className="text-[10px] text-sac-text-light tracking-wider uppercase font-semibold">
+          Field Results
+        </span>
+        <div className="flex gap-4 text-[10px] text-sac-text-light tracking-wider uppercase font-semibold">
+          <span>Score</span>
+          <span className="w-8 text-center">Pts</span>
+        </div>
+      </div>
+      <div className="divide-y divide-cream">
+        {ranked.map((pair, i) => {
+          const names = pair.playerIds.map(playerName).join(' / ');
+          const teamCfg = TEAM_CONFIG[pair.teamId];
+          const vsPar = pair.total - coursePar;
+          const vsParStr = pair.hasScores ? (vsPar === 0 ? 'E' : vsPar > 0 ? `+${vsPar}` : `${vsPar}`) : '';
+          const isTop3 = pair.rank <= 3;
+          return (
+            <div key={i} className={`px-3 py-2.5 flex items-center gap-3 ${isTop3 ? 'bg-gold/5' : ''}`}>
+              <span className={`text-xs font-bold w-5 text-center ${isTop3 ? 'text-gold-dark' : 'text-sac-text-light'}`}>
+                {pair.rank}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm truncate ${isTop3 ? 'font-bold text-navy' : 'text-sac-text'}`}>
+                  {names}
+                </p>
+                <p className="text-[10px] text-sac-text-light">{teamCfg.shortName}</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  {pair.hasScores && (
+                    <>
+                      <p className="text-xs font-semibold text-sac-text">{pair.total}</p>
+                      <p className="text-[10px] text-sac-text-light">{vsParStr}</p>
+                    </>
+                  )}
+                </div>
+                <div className={`text-lg font-display font-black w-8 text-center ${
+                  pair.teamId === 'morning-woods' ? 'text-usa' : 'text-euro'
+                }`}>
+                  {pair.points}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

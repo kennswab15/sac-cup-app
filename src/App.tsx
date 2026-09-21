@@ -10,7 +10,6 @@ import Scoring from '@/pages/Scoring';
 import Chat from '@/pages/Chat';
 import Admin from '@/pages/Admin';
 import Scorecards from '@/pages/Scorecards';
-import Wheel from '@/pages/Wheel';
 import PlayerStats from '@/pages/PlayerStats';
 import Projections from '@/pages/Projections';
 
@@ -62,7 +61,6 @@ export default function App() {
                 <Route path="/chat" element={<Chat />} />
                 <Route path="/admin" element={<AdminGuard><Admin /></AdminGuard>} />
                 <Route path="/scorecards" element={<AdminGuard><Scorecards /></AdminGuard>} />
-                <Route path="/wheel" element={<Wheel />} />
                 <Route path="/stats" element={<PlayerStats />} />
                 <Route path="/projections" element={<Projections />} />
               </Route>
