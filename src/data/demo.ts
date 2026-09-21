@@ -25,6 +25,10 @@ export function makeEmptyHoles(): HoleScore[] {
   return SOLINA_HOLES.map(h => ({ ...h, team1Score: null, team2Score: null }));
 }
 
+function makeFilledHoles(t1: number[], t2: number[]): HoleScore[] {
+  return SOLINA_HOLES.map((h, i) => ({ ...h, team1Score: t1[i], team2Score: t2[i] }));
+}
+
 export const DEMO_PLAYERS: Player[] = [
   // Morning Woods
   { id: 'mw-1', name: 'Brian Muffly', handicap: 24, team: 'morning-woods', pin: '2418' },
@@ -81,8 +85,9 @@ export const DEMO_EVENT: SacEvent = {
   },
   rounds: [
     // Friday AM — Scramble (Stroke Play, 28 pts)
-    // Pairings are same-team foursomes; scoring is positional (1st=7, 2nd=5, 3rd=4, 4th=3, 5th=2, 6th-12th=1)
-    // We don't have individual pair results — Friday combined total: CE 25, MW 21
+    // Positional scoring: 1st=7, 2nd=5, 3rd=4, 4th=3, 5th=2, 6th-12th=1
+    // Ordered by total score; ties broken by Last 9, Last 6, Last 3, Last 1
+    // MW 15 — CE 13
     {
       id: 'r1',
       eventId: 'sac-2026',
@@ -95,12 +100,18 @@ export const DEMO_EVENT: SacEvent = {
       manualTeam2Points: 13,
       status: 'complete' as const,
       matches: [
-        { id: 'r1-m1', roundId: 'r1', groupNumber: 1, teeTime: '8:30 AM', format: 'scramble' as const, team1: { teamId: 'chip-endels' as const, playerIds: ['ce-5', 'ce-2'] }, team2: { teamId: 'chip-endels' as const, playerIds: ['ce-8', 'ce-3'] }, holes: makeEmptyHoles(), status: 'complete' as const, result: null, manualResult: { team1Points: 5, team2Points: 1 } },
-        { id: 'r1-m2', roundId: 'r1', groupNumber: 2, teeTime: '8:40 AM', format: 'scramble' as const, team1: { teamId: 'morning-woods' as const, playerIds: ['mw-11', 'mw-1'] }, team2: { teamId: 'morning-woods' as const, playerIds: ['mw-10', 'mw-3'] }, holes: makeEmptyHoles(), status: 'complete' as const, result: null, manualResult: { team1Points: 7, team2Points: 1 } },
-        { id: 'r1-m3', roundId: 'r1', groupNumber: 3, teeTime: '8:50 AM', format: 'scramble' as const, team1: { teamId: 'chip-endels' as const, playerIds: ['ce-6', 'ce-7'] }, team2: { teamId: 'chip-endels' as const, playerIds: ['ce-4', 'ce-11'] }, holes: makeEmptyHoles(), status: 'complete' as const, result: null, manualResult: { team1Points: 4, team2Points: 1 } },
-        { id: 'r1-m4', roundId: 'r1', groupNumber: 4, teeTime: '9:00 AM', format: 'scramble' as const, team1: { teamId: 'morning-woods' as const, playerIds: ['mw-6', 'mw-12'] }, team2: { teamId: 'morning-woods' as const, playerIds: ['mw-8', 'mw-2'] }, holes: makeEmptyHoles(), status: 'complete' as const, result: null, manualResult: { team1Points: 3, team2Points: 2 } },
-        { id: 'r1-m5', roundId: 'r1', groupNumber: 5, teeTime: '9:10 AM', format: 'scramble' as const, team1: { teamId: 'chip-endels' as const, playerIds: ['ce-10', 'ce-1'] }, team2: { teamId: 'chip-endels' as const, playerIds: ['ce-12', 'ce-9'] }, holes: makeEmptyHoles(), status: 'complete' as const, result: null, manualResult: { team1Points: 1, team2Points: 1 } },
-        { id: 'r1-m6', roundId: 'r1', groupNumber: 6, teeTime: '9:20 AM', format: 'scramble' as const, team1: { teamId: 'morning-woods' as const, playerIds: ['mw-9', 'mw-7'] }, team2: { teamId: 'morning-woods' as const, playerIds: ['mw-4', 'mw-5'] }, holes: makeEmptyHoles(), status: 'complete' as const, result: null, manualResult: { team1Points: 1, team2Points: 1 } },
+        // 1st (61, B31): Kuchem/Randolph 7pts | 2nd (61, B32): Liias/George 5pts
+        { id: 'r1-m1', roundId: 'r1', groupNumber: 1, teeTime: '8:00 AM', format: 'scramble' as const, team1: { teamId: 'morning-woods' as const, playerIds: ['mw-2', 'mw-8'] }, team2: { teamId: 'chip-endels' as const, playerIds: ['ce-6', 'ce-7'] }, holes: makeFilledHoles([4,3,4,3,2,4,3,4,3,4,6,2,4,3,4,3,2,3], [4,3,3,4,4,2,4,2,3,4,4,3,4,4,4,3,2,4]), status: 'complete' as const, result: null, manualResult: { team1Points: 7, team2Points: 5 } },
+        // 3rd (61, B33): Kerr/Thompson 4pts | 4th (63, B32): Swab/Strickland 3pts
+        { id: 'r1-m2', roundId: 'r1', groupNumber: 2, teeTime: '8:00 AM', format: 'scramble' as const, team1: { teamId: 'chip-endels' as const, playerIds: ['ce-12', 'ce-9'] }, team2: { teamId: 'morning-woods' as const, playerIds: ['mw-4', 'mw-5'] }, holes: makeFilledHoles([4,3,4,2,2,4,3,3,3,3,5,3,4,4,4,4,2,4], [3,4,4,4,3,4,3,3,3,4,4,3,3,3,4,4,3,4]), status: 'complete' as const, result: null, manualResult: { team1Points: 4, team2Points: 3 } },
+        // 5th (63, B33): McIlroy/McMann 2pts | 6th (64): Liberto/Kropp 1pt
+        { id: 'r1-m3', roundId: 'r1', groupNumber: 3, teeTime: '8:00 AM', format: 'scramble' as const, team1: { teamId: 'morning-woods' as const, playerIds: ['mw-10', 'mw-3'] }, team2: { teamId: 'chip-endels' as const, playerIds: ['ce-5', 'ce-2'] }, holes: makeFilledHoles([4,3,5,3,3,4,2,3,3,3,4,4,4,5,2,4,3,4], [4,3,5,3,3,4,3,3,3,3,6,3,4,4,3,3,3,4]), status: 'complete' as const, result: null, manualResult: { team1Points: 2, team2Points: 1 } },
+        // 7th (66, B33): Clark/Donahoe 1pt | 8th (66, B34): Mattson/Holland 1pt
+        { id: 'r1-m4', roundId: 'r1', groupNumber: 4, teeTime: '8:00 AM', format: 'scramble' as const, team1: { teamId: 'chip-endels' as const, playerIds: ['ce-8', 'ce-3'] }, team2: { teamId: 'chip-endels' as const, playerIds: ['ce-10', 'ce-1'] }, holes: makeFilledHoles([4,3,5,3,4,5,2,4,3,3,5,3,4,4,3,4,4,3], [5,3,6,3,3,3,3,3,3,2,5,4,4,4,5,4,3,3]), status: 'complete' as const, result: null, manualResult: { team1Points: 1, team2Points: 1 } },
+        // 9th (67): Moore/Perkins 1pt | 10th (68): Buckhout/Muffly 1pt
+        { id: 'r1-m5', roundId: 'r1', groupNumber: 5, teeTime: '8:00 AM', format: 'scramble' as const, team1: { teamId: 'morning-woods' as const, playerIds: ['mw-9', 'mw-7'] }, team2: { teamId: 'morning-woods' as const, playerIds: ['mw-11', 'mw-1'] }, holes: makeFilledHoles([4,3,4,3,4,4,2,4,3,3,6,3,5,5,4,4,3,3], [4,4,4,3,4,4,3,3,3,4,4,4,4,4,4,5,4,3]), status: 'complete' as const, result: null, manualResult: { team1Points: 1, team2Points: 1 } },
+        // 11th (69, B34): Mills/Holroyd 1pt | 12th (69, B36): Loreti/Taylor 1pt
+        { id: 'r1-m6', roundId: 'r1', groupNumber: 6, teeTime: '8:00 AM', format: 'scramble' as const, team1: { teamId: 'chip-endels' as const, playerIds: ['ce-4', 'ce-11'] }, team2: { teamId: 'morning-woods' as const, playerIds: ['mw-6', 'mw-12'] }, holes: makeFilledHoles([5,2,5,4,3,5,3,4,4,3,5,4,3,5,3,5,3,3], [5,3,5,3,3,5,3,3,3,4,5,4,4,4,4,4,3,4]), status: 'complete' as const, result: null, manualResult: { team1Points: 1, team2Points: 1 } },
       ],
     },
     // Friday PM — Four-Ball (Match Play, 18 pts)

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sac-cup-v1';
+const CACHE_NAME = 'sac-cup-v2';
 const PRECACHE_URLS = ['/', '/index.html'];
 
 self.addEventListener('install', (event) => {
