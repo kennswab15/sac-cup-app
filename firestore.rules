@@ -1,0 +1,40 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Events — public read, write restricted to future auth
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if true; // TODO: restrict to admin role after auth is added
+    }
+
+    // Rounds — public read, write restricted to future auth
+    match /rounds/{roundId} {
+      allow read: if true;
+      allow write: if true; // TODO: restrict to admin role after auth is added
+    }
+
+    // Matches — public read, any participant can update scores
+    match /matches/{matchId} {
+      allow read: if true;
+      allow write: if true; // TODO: restrict to assigned players after auth is added
+    }
+
+    // Players — public read, admin write
+    match /players/{playerId} {
+      allow read: if true;
+      allow write: if true; // TODO: restrict to admin role after auth is added
+    }
+
+    // Chat — public read/write for event participants
+    match /chat/{messageId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['eventId', 'userId', 'userName', 'userTeam', 'text', 'timestamp'])
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() > 0
+                    && request.resource.data.text.size() <= 500;
+      allow update, delete: if false;
+    }
+  }
+}
