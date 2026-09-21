@@ -3,31 +3,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Events — public read, write restricted to future auth
+    // Events — read-only (seeded once; re-seed via Firebase Console)
     match /events/{eventId} {
       allow read: if true;
-      allow write: if true; // TODO: restrict to admin role after auth is added
+      allow write: if false;
     }
 
-    // Rounds — public read, write restricted to future auth
+    // Rounds — read + update only (admin can change round status)
     match /rounds/{roundId} {
       allow read: if true;
-      allow write: if true; // TODO: restrict to admin role after auth is added
+      allow update: if true;
+      allow create, delete: if false;
     }
 
-    // Matches — public read, any participant can update scores
+    // Matches — read + update only (live scoring updates)
     match /matches/{matchId} {
       allow read: if true;
-      allow write: if true; // TODO: restrict to assigned players after auth is added
+      allow update: if true;
+      allow create, delete: if false;
     }
 
-    // Players — public read, admin write
+    // Players — read + update only (admin can update handicaps/PINs)
     match /players/{playerId} {
       allow read: if true;
-      allow write: if true; // TODO: restrict to admin role after auth is added
+      allow update: if true;
+      allow create, delete: if false;
     }
 
-    // Chat — public read/write for event participants
+    // Chat — read + validated create, no edits or deletes
     match /chat/{messageId} {
       allow read: if true;
       allow create: if request.resource.data.keys().hasAll(['eventId', 'userId', 'userName', 'userTeam', 'text', 'timestamp'])
@@ -35,6 +38,11 @@ service cloud.firestore {
                     && request.resource.data.text.size() > 0
                     && request.resource.data.text.size() <= 500;
       allow update, delete: if false;
+    }
+
+    // Deny everything else
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
