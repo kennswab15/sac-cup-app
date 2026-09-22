@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Calendar, ArrowRight, Trophy, Disc3, Users, Calculator } from 'lucide-react';
+import { MapPin, Calendar, ArrowRight, Trophy, Users, Calculator } from 'lucide-react';
 import { useEvent } from '@/context/EventContext';
 import { getEventStandings, getLeaderTeam, calculateMatchResult, getRoundStandings } from '@/lib/scoring';
 import { FORMAT_LABELS, TEAM_CONFIG } from '@/lib/types';
@@ -153,13 +153,6 @@ export default function Home() {
           >
             <Trophy className="w-6 h-6 mx-auto mb-1" />
             Leaderboard
-          </Link>
-          <Link
-            to="/wheel"
-            className="bg-white text-navy rounded-xl p-4 text-center font-semibold text-sm shadow-md hover:bg-cream transition-colors border border-gold/30"
-          >
-            <Disc3 className="w-6 h-6 mx-auto mb-1 text-gold" />
-            Wheel
           </Link>
           <Link
             to="/stats"
