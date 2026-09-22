@@ -1,6 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useEvent } from '@/context/EventContext';
 import { TEE_SETS, HOLE_HCP_INDEX, getCourseHandicap, getStrokeHoles, type TeeSet } from '@/data/course';
+import { TEAM_CONFIG } from '@/lib/types';
+import type { TeamId } from '@/lib/types';
 import { Printer, ChevronLeft } from 'lucide-react';
 
 type RoundFormat = 'scramble' | 'fourball' | 'shamble' | 'singles';
@@ -21,66 +23,59 @@ interface CardPlayer {
 const emptyPlayer = (): CardPlayer => ({ name: '', handicapIndex: 0, teeId: 'blue' });
 
 function applyPlayingHandicap(courseHcp: number, format: RoundFormat): number {
-  if (format === 'fourball' || format === 'singles') {
-    return Math.round(courseHcp * 0.9);
-  }
+  if (format === 'fourball' || format === 'singles') return Math.round(courseHcp * 0.9);
   return courseHcp;
 }
 
 function computeTeamHandicap(hcpA: number, hcpB: number, format: RoundFormat): number {
   const low = Math.min(hcpA, hcpB);
   const high = Math.max(hcpA, hcpB);
-  if (format === 'scramble') {
-    return Math.round(low * 0.15 + high * 0.35);
-  }
-  if (format === 'shamble') {
-    return Math.round(low * 0.60 + high * 0.40);
-  }
+  if (format === 'scramble') return Math.round(low * 0.15 + high * 0.35);
+  if (format === 'shamble') return Math.round(low * 0.60 + high * 0.40);
   return 0;
+}
+
+function getTee(id: string) {
+  return TEE_SETS.find(t => t.id === id) ?? TEE_SETS[2];
 }
 
 export default function Scorecards() {
   const { players } = useEvent();
   const [format, setFormat] = useState<RoundFormat>('singles');
-  const [p1, setP1] = useState<CardPlayer>(emptyPlayer());
-  const [p2, setP2] = useState<CardPlayer>(emptyPlayer());
+  const [scrambleTeam, setScrambleTeam] = useState<TeamId>('morning-woods');
+  const [mw1, setMw1] = useState<CardPlayer>(emptyPlayer());
+  const [mw2, setMw2] = useState<CardPlayer>(emptyPlayer());
+  const [ce1, setCe1] = useState<CardPlayer>(emptyPlayer());
+  const [ce2, setCe2] = useState<CardPlayer>(emptyPlayer());
   const [showCard, setShowCard] = useState(false);
 
-  const mwPlayers = players.filter(p => p.team === 'morning-woods').sort((a, b) => a.name.localeCompare(b.name));
-  const cePlayers = players.filter(p => p.team === 'chip-endels').sort((a, b) => a.name.localeCompare(b.name));
+  const mwRoster = players.filter(p => p.team === 'morning-woods').sort((a, b) => a.name.localeCompare(b.name));
+  const ceRoster = players.filter(p => p.team === 'chip-endels').sort((a, b) => a.name.localeCompare(b.name));
 
-  const tee1 = TEE_SETS.find(t => t.id === p1.teeId)!;
-  const tee2 = TEE_SETS.find(t => t.id === p2.teeId)!;
-  const rawHcp1 = getCourseHandicap(p1.handicapIndex, tee1);
-  const rawHcp2 = getCourseHandicap(p2.handicapIndex, tee2);
+  const isScramble = format === 'scramble';
 
-  const isTeamFormat = format === 'scramble' || format === 'shamble';
+  const canGenerate = isScramble
+    ? (scrambleTeam === 'morning-woods' ? mw1 : ce1).name.trim().length > 0
+      && (scrambleTeam === 'morning-woods' ? mw2 : ce2).name.trim().length > 0
+    : mw1.name.trim().length > 0 && mw2.name.trim().length > 0
+      && ce1.name.trim().length > 0 && ce2.name.trim().length > 0;
 
-  const playingHcp1 = isTeamFormat ? rawHcp1 : applyPlayingHandicap(rawHcp1, format);
-  const playingHcp2 = isTeamFormat ? rawHcp2 : applyPlayingHandicap(rawHcp2, format);
-  const teamHcp = isTeamFormat ? computeTeamHandicap(rawHcp1, rawHcp2, format) : 0;
-
-  const canGenerate = p1.name.trim().length > 0 && p2.name.trim().length > 0;
   const roundInfo = ROUND_OPTIONS.find(r => r.id === format)!;
 
   if (showCard && canGenerate) {
     return (
       <PrintableScorecard
-        p1={p1}
-        p2={p2}
-        tee1={tee1}
-        tee2={tee2}
-        rawHcp1={rawHcp1}
-        rawHcp2={rawHcp2}
-        playingHcp1={playingHcp1}
-        playingHcp2={playingHcp2}
-        teamHcp={teamHcp}
         format={format}
+        scrambleTeam={scrambleTeam}
+        mw1={mw1} mw2={mw2} ce1={ce1} ce2={ce2}
         roundInfo={roundInfo}
         onBack={() => setShowCard(false)}
       />
     );
   }
+
+  const scrambleColor = scrambleTeam === 'morning-woods' ? 'text-usa' : 'text-euro';
+  const scrambleRoster = scrambleTeam === 'morning-woods' ? mwRoster : ceRoster;
 
   return (
     <div className="max-w-lg mx-auto">
@@ -115,59 +110,70 @@ export default function Scorecards() {
           </p>
         </div>
 
-        <PlayerInput
-          label="Player A"
-          value={p1}
-          onChange={setP1}
-          mwPlayers={mwPlayers}
-          cePlayers={cePlayers}
-          rawHcp={rawHcp1}
-          playingHcp={isTeamFormat ? null : playingHcp1}
-          colorClass="text-usa"
-        />
-
-        <div className="text-center text-sac-text-light text-xs font-semibold tracking-wider uppercase">
-          {isTeamFormat ? '&' : 'vs'}
-        </div>
-
-        <PlayerInput
-          label="Player B"
-          value={p2}
-          onChange={setP2}
-          mwPlayers={mwPlayers}
-          cePlayers={cePlayers}
-          rawHcp={rawHcp2}
-          playingHcp={isTeamFormat ? null : playingHcp2}
-          colorClass="text-euro"
-        />
-
-        {/* Team Handicap Summary for scramble/shamble */}
-        {isTeamFormat && canGenerate && (
-          <div className="bg-white rounded-xl p-4 shadow-sm text-center">
-            <p className="text-[10px] text-gold font-semibold tracking-wider uppercase mb-2">Team Playing Handicap</p>
-            <div className="flex items-center justify-center gap-3">
-              <div className="text-[10px] text-sac-text-light">
-                {format === 'scramble' ? '15%' : '60%'} of {rawHcp1 <= rawHcp2 ? p1.name.split(' ')[0] : p2.name.split(' ')[0]} ({Math.min(rawHcp1, rawHcp2)})
+        {isScramble ? (
+          <>
+            {/* Team Selector for Scramble */}
+            <div className="bg-white rounded-xl p-4 shadow-sm">
+              <p className="text-[10px] text-gold font-semibold tracking-wider uppercase mb-3">Team</p>
+              <div className="flex gap-2">
+                {(['morning-woods', 'chip-endels'] as const).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setScrambleTeam(t)}
+                    className={`flex-1 py-2.5 rounded-lg font-bold text-sm tracking-wider uppercase transition-all ${
+                      scrambleTeam === t
+                        ? t === 'morning-woods' ? 'bg-usa text-white' : 'bg-euro text-white'
+                        : 'bg-cream text-sac-text-light hover:bg-cream-dark'
+                    }`}
+                  >
+                    {TEAM_CONFIG[t].shortName}
+                  </button>
+                ))}
               </div>
-              <span className="text-sac-text-light">+</span>
-              <div className="text-[10px] text-sac-text-light">
-                {format === 'scramble' ? '35%' : '40%'} of {rawHcp1 > rawHcp2 ? p1.name.split(' ')[0] : p2.name.split(' ')[0]} ({Math.max(rawHcp1, rawHcp2)})
-              </div>
-              <span className="text-sac-text-light">=</span>
-              <div className="text-2xl font-display font-black text-navy">{teamHcp}</div>
             </div>
-          </div>
-        )}
 
-        {canGenerate && (
-          <StrokeSummary
-            name1={p1.name}
-            name2={p2.name}
-            hcp1={isTeamFormat ? teamHcp : playingHcp1}
-            hcp2={isTeamFormat ? 0 : playingHcp2}
-            isTeamFormat={isTeamFormat}
-            teamLabel={isTeamFormat ? `${p1.name.split(' ')[0]} & ${p2.name.split(' ')[0]}` : undefined}
-          />
+            <PlayerInput
+              label="Player 1"
+              value={scrambleTeam === 'morning-woods' ? mw1 : ce1}
+              onChange={scrambleTeam === 'morning-woods' ? setMw1 : setCe1}
+              roster={scrambleRoster}
+              colorClass={scrambleColor}
+            />
+            <div className="text-center text-sac-text-light text-xs font-semibold tracking-wider uppercase">&</div>
+            <PlayerInput
+              label="Player 2"
+              value={scrambleTeam === 'morning-woods' ? mw2 : ce2}
+              onChange={scrambleTeam === 'morning-woods' ? setMw2 : setCe2}
+              roster={scrambleRoster}
+              colorClass={scrambleColor}
+            />
+          </>
+        ) : (
+          <>
+            {/* Morning Woods pair */}
+            <div>
+              <p className="text-[10px] font-bold tracking-wider uppercase mb-2 text-usa px-1">
+                {TEAM_CONFIG['morning-woods'].name}
+              </p>
+              <div className="space-y-2">
+                <PlayerInput label="Player 1" value={mw1} onChange={setMw1} roster={mwRoster} colorClass="text-usa" />
+                <PlayerInput label="Player 2" value={mw2} onChange={setMw2} roster={mwRoster} colorClass="text-usa" />
+              </div>
+            </div>
+
+            <div className="text-center text-sac-text-light text-xs font-semibold tracking-wider uppercase">vs</div>
+
+            {/* Chip-Endels pair */}
+            <div>
+              <p className="text-[10px] font-bold tracking-wider uppercase mb-2 text-euro px-1">
+                {TEAM_CONFIG['chip-endels'].name}
+              </p>
+              <div className="space-y-2">
+                <PlayerInput label="Player 1" value={ce1} onChange={setCe1} roster={ceRoster} colorClass="text-euro" />
+                <PlayerInput label="Player 2" value={ce2} onChange={setCe2} roster={ceRoster} colorClass="text-euro" />
+              </div>
+            </div>
+          </>
         )}
 
         <button
@@ -184,426 +190,416 @@ export default function Scorecards() {
 }
 
 function PlayerInput({
-  label, value, onChange, mwPlayers, cePlayers, rawHcp, playingHcp, colorClass,
+  label, value, onChange, roster, colorClass,
 }: {
   label: string;
   value: CardPlayer;
   onChange: (v: CardPlayer) => void;
-  mwPlayers: { id: string; name: string; handicap: number }[];
-  cePlayers: { id: string; name: string; handicap: number }[];
-  rawHcp: number;
-  playingHcp: number | null;
+  roster: { id: string; name: string; handicap: number }[];
   colorClass: string;
 }) {
   const handlePlayerSelect = (playerId: string) => {
-    const all = [...mwPlayers, ...cePlayers];
-    const found = all.find(p => p.id === playerId);
-    if (found) {
-      onChange({ ...value, name: found.name, handicapIndex: found.handicap });
-    }
+    const found = roster.find(p => p.id === playerId);
+    if (found) onChange({ ...value, name: found.name, handicapIndex: found.handicap });
   };
 
-  return (
-    <div className="bg-white rounded-xl p-4 shadow-sm">
-      <p className="text-[10px] text-gold font-semibold tracking-wider uppercase mb-2">{label}</p>
+  const tee = getTee(value.teeId);
+  const courseHcp = getCourseHandicap(value.handicapIndex, tee);
 
+  return (
+    <div className="bg-white rounded-xl p-3 shadow-sm">
       <select
         value=""
         onChange={e => { if (e.target.value) handlePlayerSelect(e.target.value); }}
-        className="w-full bg-cream border border-cream-dark rounded-lg px-3 py-2 text-xs text-sac-text-light appearance-none mb-3"
+        className="w-full bg-cream border border-cream-dark rounded-lg px-2 py-1.5 text-xs text-sac-text-light appearance-none mb-2"
       >
-        <option value="">Quick-fill from roster...</option>
-        <optgroup label="Morning Woods">
-          {mwPlayers.map(p => (
-            <option key={p.id} value={p.id}>{p.name} ({p.handicap})</option>
-          ))}
-        </optgroup>
-        <optgroup label="Chip-Endels">
-          {cePlayers.map(p => (
-            <option key={p.id} value={p.id}>{p.name} ({p.handicap})</option>
-          ))}
-        </optgroup>
+        <option value="">{label} — select from roster...</option>
+        {roster.map(p => (
+          <option key={p.id} value={p.id}>{p.name} ({p.handicap})</option>
+        ))}
       </select>
 
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <p className="text-[10px] text-sac-text-light mb-1">Name</p>
-          <input
-            type="text"
-            value={value.name}
-            onChange={e => onChange({ ...value, name: e.target.value })}
-            placeholder="Player name"
-            className={`w-full bg-cream border border-cream-dark rounded-lg px-3 py-2 text-sm font-semibold ${colorClass} placeholder:text-sac-text-light/40`}
-          />
-        </div>
-        <div className="w-20">
-          <p className="text-[10px] text-sac-text-light mb-1">HCP Index</p>
-          <input
-            type="number"
-            value={value.handicapIndex}
-            onChange={e => onChange({ ...value, handicapIndex: parseFloat(e.target.value) || 0 })}
-            step="0.1"
-            min="-10"
-            max="54"
-            className="w-full bg-cream border border-cream-dark rounded-lg px-3 py-2 text-sm font-bold text-navy text-center"
-          />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3 mt-3">
-        <div className="flex-1">
-          <p className="text-[10px] text-sac-text-light mb-1">Tee</p>
-          <select
-            value={value.teeId}
-            onChange={e => onChange({ ...value, teeId: e.target.value })}
-            className="w-full bg-cream border border-cream-dark rounded-lg px-3 py-2 text-xs text-navy font-semibold appearance-none"
-          >
-            {TEE_SETS.map(t => (
-              <option key={t.id} value={t.id}>{t.name} ({t.totalYards} yds, {t.courseRating}/{t.slopeRating})</option>
-            ))}
-          </select>
-        </div>
-        <div className="text-center px-3">
-          <p className="text-[10px] text-sac-text-light">Course HCP</p>
-          <p className="text-2xl font-display font-black text-navy">{rawHcp}</p>
-          {playingHcp !== null && playingHcp !== rawHcp && (
-            <p className="text-[9px] text-gold font-semibold">Playing: {playingHcp}</p>
-          )}
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={value.name}
+          onChange={e => onChange({ ...value, name: e.target.value })}
+          placeholder="Player name"
+          className={`flex-1 bg-cream border border-cream-dark rounded-lg px-2 py-1.5 text-sm font-semibold ${colorClass} placeholder:text-sac-text-light/40`}
+        />
+        <input
+          type="number"
+          value={value.handicapIndex}
+          onChange={e => onChange({ ...value, handicapIndex: parseFloat(e.target.value) || 0 })}
+          step="0.1"
+          min="-10"
+          max="54"
+          className="w-16 bg-cream border border-cream-dark rounded-lg px-2 py-1.5 text-xs font-bold text-navy text-center"
+          title="Handicap Index"
+        />
+        <select
+          value={value.teeId}
+          onChange={e => onChange({ ...value, teeId: e.target.value })}
+          className="w-20 bg-cream border border-cream-dark rounded-lg px-1 py-1.5 text-[10px] text-navy font-semibold appearance-none"
+        >
+          {TEE_SETS.map(t => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+        <div className="text-center w-10 shrink-0">
+          <p className="text-[8px] text-sac-text-light leading-none">HCP</p>
+          <p className="text-lg font-display font-black text-navy leading-tight">{courseHcp}</p>
         </div>
       </div>
     </div>
   );
 }
 
-function StrokeSummary({ name1, name2, hcp1, hcp2, isTeamFormat, teamLabel }: {
-  name1: string; name2: string; hcp1: number; hcp2: number;
-  isTeamFormat: boolean; teamLabel?: string;
-}) {
-  const strokes1 = getStrokeHoles(hcp1);
-  const strokes2 = isTeamFormat ? new Map<number, number>() : getStrokeHoles(hcp2);
-
-  return (
-    <div className="bg-white rounded-xl p-4 shadow-sm">
-      <p className="text-[10px] text-gold font-semibold tracking-wider uppercase mb-3">
-        Stroke Allocation {isTeamFormat ? '(Team)' : ''}
-      </p>
-      <div className="overflow-x-auto -mx-2">
-        <table className="w-full text-[10px] text-center min-w-[540px]">
-          <thead>
-            <tr className="text-sac-text-light border-b border-cream-dark">
-              <td className="px-1 py-1 text-left font-semibold w-20">Hole</td>
-              {Array.from({ length: 9 }, (_, i) => (
-                <td key={i} className="px-0.5 py-1 font-semibold">{i + 1}</td>
-              ))}
-              <td className="px-1 py-1 font-semibold text-gold">OUT</td>
-              {Array.from({ length: 9 }, (_, i) => (
-                <td key={i + 9} className="px-0.5 py-1 font-semibold">{i + 10}</td>
-              ))}
-              <td className="px-1 py-1 font-semibold text-gold">IN</td>
-              <td className="px-1 py-1 font-semibold text-gold">TOT</td>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="text-sac-text-light">
-              <td className="text-left px-1">HCP</td>
-              {HOLE_HCP_INDEX.slice(0, 9).map((h, i) => <td key={i} className="px-0.5">{h}</td>)}
-              <td></td>
-              {HOLE_HCP_INDEX.slice(9).map((h, i) => <td key={i} className="px-0.5">{h}</td>)}
-              <td></td>
-              <td></td>
-            </tr>
-            {isTeamFormat ? (
-              <StrokeRow name={teamLabel || 'Team'} strokes={strokes1} hcp={hcp1} colorClass="text-usa" />
-            ) : (
-              <>
-                <StrokeRow name={name1} strokes={strokes1} hcp={hcp1} colorClass="text-usa" />
-                <StrokeRow name={name2} strokes={strokes2} hcp={hcp2} colorClass="text-euro" />
-              </>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function StrokeRow({ name, strokes, hcp, colorClass }: {
-  name: string; strokes: Map<number, number>; hcp: number; colorClass: string;
-}) {
-  const frontStrokes = Array.from({ length: 9 }, (_, i) => strokes.get(i + 1) ?? 0);
-  const backStrokes = Array.from({ length: 9 }, (_, i) => strokes.get(i + 10) ?? 0);
-  const frontTotal = frontStrokes.reduce((a, b) => a + b, 0);
-  const backTotal = backStrokes.reduce((a, b) => a + b, 0);
-
-  return (
-    <tr>
-      <td className={`text-left px-1 font-semibold ${colorClass} truncate max-w-[80px]`}>{name.split(' ')[0]}</td>
-      {frontStrokes.map((dots, i) => (
-        <td key={i} className="px-0.5">{dots > 0 ? '●'.repeat(dots) : ''}</td>
-      ))}
-      <td className={`${colorClass} font-bold`}>{frontTotal || ''}</td>
-      {backStrokes.map((dots, i) => (
-        <td key={i} className="px-0.5">{dots > 0 ? '●'.repeat(dots) : ''}</td>
-      ))}
-      <td className={`${colorClass} font-bold`}>{backTotal || ''}</td>
-      <td className={`${colorClass} font-bold`}>{hcp}</td>
-    </tr>
-  );
-}
-
-function PrintableScorecard({ p1, p2, tee1, tee2, rawHcp1, rawHcp2, playingHcp1, playingHcp2, teamHcp, format, roundInfo, onBack }: {
-  p1: CardPlayer; p2: CardPlayer; tee1: TeeSet; tee2: TeeSet;
-  rawHcp1: number; rawHcp2: number; playingHcp1: number; playingHcp2: number;
-  teamHcp: number; format: RoundFormat;
+interface CardProps {
+  format: RoundFormat;
+  scrambleTeam: TeamId;
+  mw1: CardPlayer; mw2: CardPlayer;
+  ce1: CardPlayer; ce2: CardPlayer;
   roundInfo: { label: string; round: string; scoring: string; desc: string };
   onBack: () => void;
-}) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const isTeamFormat = format === 'scramble' || format === 'shamble';
+}
 
-  const printHcp1 = isTeamFormat ? teamHcp : playingHcp1;
-  const printHcp2 = isTeamFormat ? 0 : playingHcp2;
-  const strokes1 = getStrokeHoles(printHcp1);
-  const strokes2 = isTeamFormat ? new Map<number, number>() : getStrokeHoles(printHcp2);
+function PrintableScorecard({ format, scrambleTeam, mw1, mw2, ce1, ce2, roundInfo, onBack }: CardProps) {
+  const isScramble = format === 'scramble';
+  const isShamble = format === 'shamble';
+  const isTeamFormat = isScramble || isShamble;
+  const isIndividual = format === 'fourball' || format === 'singles';
+
+  const p1 = isScramble && scrambleTeam === 'chip-endels' ? ce1 : mw1;
+  const p2 = isScramble && scrambleTeam === 'chip-endels' ? ce2 : mw2;
+  const teamId1: TeamId = isScramble ? scrambleTeam : 'morning-woods';
+
+  const tee1 = getTee(p1.teeId);
+  const tee2 = getTee(p2.teeId);
+  const tee3 = getTee(ce1.teeId);
+  const tee4 = getTee(ce2.teeId);
+  const raw1 = getCourseHandicap(p1.handicapIndex, tee1);
+  const raw2 = getCourseHandicap(p2.handicapIndex, tee2);
+  const raw3 = getCourseHandicap(ce1.handicapIndex, tee3);
+  const raw4 = getCourseHandicap(ce2.handicapIndex, tee4);
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-5xl mx-auto">
       <div className="no-print px-4 py-3 flex items-center justify-between bg-navy text-white">
         <button onClick={onBack} className="flex items-center gap-1 text-white/70 hover:text-white text-sm">
           <ChevronLeft className="w-4 h-4" /> Back
         </button>
         <button onClick={() => window.print()} className="flex items-center gap-2 bg-gold text-navy px-4 py-2 rounded-lg font-bold text-sm">
-          <Printer className="w-4 h-4" /> Print
+          <Printer className="w-4 h-4" /> Print (2 per page)
         </button>
       </div>
 
-      <div ref={cardRef} className="bg-white p-4 print:p-2">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-3 border-b-2 border-navy pb-2">
-          <img src="/sac-cup-logo.png" alt="The SAC Cup" className="w-12 h-12 rounded-full" />
-          <div className="flex-1 text-center">
-            <h2 className="font-display text-lg font-black text-navy">The SAC Cup 2026</h2>
-            <p className="text-[10px] text-sac-text-light">Solina Golf Club &middot; West Columbia, SC</p>
-            <p className="text-[10px] font-semibold text-gold mt-0.5">{roundInfo.round} &middot; {roundInfo.label}</p>
-          </div>
-          <div className="text-right text-[10px]">
-            <p className="font-bold text-usa">{p1.name}</p>
-            <p className="text-sac-text-light">{isTeamFormat ? '&' : 'vs'}</p>
-            <p className="font-bold text-euro">{p2.name}</p>
-          </div>
-        </div>
+      <style>{`
+        @media print {
+          @page { size: letter landscape; margin: 0.2in; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .no-print { display: none !important; }
+          .scorecard-half { height: 49vh; overflow: hidden; box-sizing: border-box; }
+          .scorecard-divider { border-top: 1px dashed #999; padding-top: 0.1in; }
+        }
+        @media screen { .print-duplicate { display: none; } }
+      `}</style>
 
-        {/* Handicap Summary */}
-        <div className="flex gap-4 mb-3 text-[10px]">
-          <div className="flex-1 bg-usa/5 rounded px-2 py-1">
-            <span className="font-bold text-usa">{p1.name}</span>
-            <span className="text-sac-text-light ml-2">
-              Index: {p1.handicapIndex} &rarr; Course: {rawHcp1}
-              {!isTeamFormat && rawHcp1 !== playingHcp1 && <> &rarr; Playing: {playingHcp1}</>}
-            </span>
-            <span className="text-sac-text-light ml-2">({tee1.name})</span>
-          </div>
-          <div className="flex-1 bg-euro/5 rounded px-2 py-1">
-            <span className="font-bold text-euro">{p2.name}</span>
-            <span className="text-sac-text-light ml-2">
-              Index: {p2.handicapIndex} &rarr; Course: {rawHcp2}
-              {!isTeamFormat && rawHcp2 !== playingHcp2 && <> &rarr; Playing: {playingHcp2}</>}
-            </span>
-            <span className="text-sac-text-light ml-2">({tee2.name})</span>
-          </div>
-        </div>
+      <ScorecardContent
+        format={format} scrambleTeam={scrambleTeam} roundInfo={roundInfo}
+        p1={p1} p2={p2} ce1={ce1} ce2={ce2}
+        tee1={tee1} tee2={tee2} tee3={tee3} tee4={tee4}
+        raw1={raw1} raw2={raw2} raw3={raw3} raw4={raw4}
+        teamId1={teamId1}
+        isScramble={isScramble} isShamble={isShamble} isTeamFormat={isTeamFormat} isIndividual={isIndividual}
+        className="scorecard-half"
+      />
+      <ScorecardContent
+        format={format} scrambleTeam={scrambleTeam} roundInfo={roundInfo}
+        p1={p1} p2={p2} ce1={ce1} ce2={ce2}
+        tee1={tee1} tee2={tee2} tee3={tee3} tee4={tee4}
+        raw1={raw1} raw2={raw2} raw3={raw3} raw4={raw4}
+        teamId1={teamId1}
+        isScramble={isScramble} isShamble={isShamble} isTeamFormat={isTeamFormat} isIndividual={isIndividual}
+        className="scorecard-half scorecard-divider print-duplicate"
+      />
+    </div>
+  );
+}
 
-        {isTeamFormat && (
-          <div className="mb-3 text-[10px] bg-gold/10 rounded px-2 py-1.5 text-center">
-            <span className="font-bold text-navy">Team Handicap: {teamHcp}</span>
-            <span className="text-sac-text-light ml-2">({roundInfo.desc})</span>
+function ScorecardContent({
+  format, roundInfo,
+  p1, p2, ce1, ce2,
+  tee1, tee2, tee3, tee4,
+  raw1, raw2, raw3, raw4,
+  teamId1,
+  isScramble, isShamble, isTeamFormat, isIndividual,
+  className,
+}: {
+  format: RoundFormat;
+  scrambleTeam: TeamId;
+  roundInfo: { label: string; round: string; scoring: string; desc: string };
+  p1: CardPlayer; p2: CardPlayer; ce1: CardPlayer; ce2: CardPlayer;
+  tee1: TeeSet; tee2: TeeSet; tee3: TeeSet; tee4: TeeSet;
+  raw1: number; raw2: number; raw3: number; raw4: number;
+  teamId1: TeamId;
+  isScramble: boolean; isShamble: boolean; isTeamFormat: boolean; isIndividual: boolean;
+  className?: string;
+}) {
+  const color1 = teamId1 === 'morning-woods' ? 'text-usa' : 'text-euro';
+  const bg1 = teamId1 === 'morning-woods' ? 'bg-usa/5' : 'bg-euro/5';
+
+  const teamHcp1 = isTeamFormat ? computeTeamHandicap(raw1, raw2, format) : 0;
+  const teamHcp2 = isShamble ? computeTeamHandicap(raw3, raw4, format) : 0;
+
+  const playHcp1 = isIndividual ? applyPlayingHandicap(raw1, format) : 0;
+  const playHcp2 = isIndividual ? applyPlayingHandicap(raw2, format) : 0;
+  const playHcp3 = isIndividual ? applyPlayingHandicap(raw3, format) : 0;
+  const playHcp4 = isIndividual ? applyPlayingHandicap(raw4, format) : 0;
+
+  const strokes1 = isScramble ? getStrokeHoles(teamHcp1) :
+                   isShamble  ? getStrokeHoles(teamHcp1) :
+                                getStrokeHoles(playHcp1);
+  const strokes2 = isScramble ? new Map<number, number>() :
+                   isShamble  ? getStrokeHoles(teamHcp2) :
+                                getStrokeHoles(playHcp2);
+  const strokes3 = isIndividual ? getStrokeHoles(playHcp3) : new Map<number, number>();
+  const strokes4 = isIndividual ? getStrokeHoles(playHcp4) : new Map<number, number>();
+
+  const refTee = tee1;
+
+  const uniqueTees = [tee1];
+  if (!isScramble) {
+    if (tee2.id !== tee1.id && !uniqueTees.some(t => t.id === tee2.id)) uniqueTees.push(tee2);
+    if (tee3.id !== tee1.id && !uniqueTees.some(t => t.id === tee3.id)) uniqueTees.push(tee3);
+    if (tee4.id !== tee1.id && !uniqueTees.some(t => t.id === tee4.id)) uniqueTees.push(tee4);
+  } else {
+    if (tee2.id !== tee1.id) uniqueTees.push(tee2);
+  }
+
+  return (
+    <div className={`bg-white p-3 print:p-2 ${className ?? ''}`}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2 border-b-2 border-navy pb-1.5">
+        <img src="/sac-cup-logo.png" alt="The SAC Cup" className="w-10 h-10 rounded-full print:w-8 print:h-8" />
+        <div className="flex-1 text-center">
+          <h2 className="font-display text-base font-black text-navy print:text-sm">The SAC Cup 2026</h2>
+          <p className="text-[9px] text-sac-text-light">Solina Golf Club &middot; West Columbia, SC</p>
+          <p className="text-[9px] font-semibold text-gold mt-0.5">{roundInfo.round} &middot; {roundInfo.label}</p>
+        </div>
+        <div className="text-right text-[9px] leading-snug">
+          {isScramble ? (
+            <>
+              <p className={`font-bold ${color1}`}>{p1.name}</p>
+              <p className={`${color1}`}>&</p>
+              <p className={`font-bold ${color1}`}>{p2.name}</p>
+            </>
+          ) : (
+            <>
+              <p className="font-bold text-usa">{p1.name.split(' ')[0]} & {p2.name.split(' ')[0]}</p>
+              <p className="text-sac-text-light">vs</p>
+              <p className="font-bold text-euro">{ce1.name.split(' ')[0]} & {ce2.name.split(' ')[0]}</p>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Handicap Summary */}
+      <div className="flex gap-2 mb-2 text-[8px] print:text-[7px]">
+        {isScramble ? (
+          <div className={`flex-1 ${bg1} rounded px-2 py-1`}>
+            <span className={`font-bold ${color1}`}>{p1.name}</span>
+            <span className="text-sac-text-light"> (Idx: {p1.handicapIndex}, Crs: {raw1}, {tee1.name})</span>
+            <span className={`font-bold ${color1}`}> & {p2.name}</span>
+            <span className="text-sac-text-light"> (Idx: {p2.handicapIndex}, Crs: {raw2}, {tee2.name})</span>
+            <span className="font-bold text-navy ml-1">Team HCP: {teamHcp1}</span>
           </div>
+        ) : (
+          <>
+            <div className="flex-1 bg-usa/5 rounded px-2 py-1">
+              <span className="font-bold text-usa">{p1.name}</span>
+              <span className="text-sac-text-light"> ({p1.handicapIndex} &rarr; {raw1}{isIndividual ? ` &rarr; ${playHcp1}` : ''}, {tee1.name})</span>
+              <br />
+              <span className="font-bold text-usa">{p2.name}</span>
+              <span className="text-sac-text-light"> ({p2.handicapIndex} &rarr; {raw2}{isIndividual ? ` &rarr; ${playHcp2}` : ''}, {tee2.name})</span>
+              {isShamble && <span className="font-bold text-navy ml-1">Team: {teamHcp1}</span>}
+            </div>
+            <div className="flex-1 bg-euro/5 rounded px-2 py-1">
+              <span className="font-bold text-euro">{ce1.name}</span>
+              <span className="text-sac-text-light"> ({ce1.handicapIndex} &rarr; {raw3}{isIndividual ? ` &rarr; ${playHcp3}` : ''}, {tee3.name})</span>
+              <br />
+              <span className="font-bold text-euro">{ce2.name}</span>
+              <span className="text-sac-text-light"> ({ce2.handicapIndex} &rarr; {raw4}{isIndividual ? ` &rarr; ${playHcp4}` : ''}, {tee4.name})</span>
+              {isShamble && <span className="font-bold text-navy ml-1">Team: {teamHcp2}</span>}
+            </div>
+          </>
         )}
+      </div>
 
-        {/* Scorecard Table */}
-        <table className="w-full border-collapse text-[9px] print:text-[8px]">
-          <thead>
-            <tr className="bg-navy text-white">
-              <th className="border border-navy/30 px-1 py-1 text-left w-16">HOLE</th>
-              {Array.from({ length: 9 }, (_, i) => (
-                <th key={i} className="border border-navy/30 px-1 py-1 w-8 text-center">{i + 1}</th>
-              ))}
-              <th className="border border-navy/30 px-1 py-1 w-8 text-center bg-navy-light">OUT</th>
-              {Array.from({ length: 9 }, (_, i) => (
-                <th key={i + 9} className="border border-navy/30 px-1 py-1 w-8 text-center">{i + 10}</th>
-              ))}
-              <th className="border border-navy/30 px-1 py-1 w-8 text-center bg-navy-light">IN</th>
-              <th className="border border-navy/30 px-1 py-1 w-8 text-center bg-gold text-navy">TOT</th>
-            </tr>
-          </thead>
-          <tbody>
-            <ScorecardYardageRow label={tee1.name} tee={tee1} colorClass="text-usa" />
-            {tee1.id !== tee2.id && (
-              <ScorecardYardageRow label={tee2.name} tee={tee2} colorClass="text-euro" />
-            )}
+      {/* Scorecard Table */}
+      <table className="w-full border-collapse text-[8px] print:text-[7px]">
+        <thead>
+          <tr className="bg-navy text-white">
+            <th className="border border-navy/30 px-0.5 py-0.5 text-left w-14">HOLE</th>
+            {Array.from({ length: 9 }, (_, i) => (
+              <th key={i} className="border border-navy/30 px-0.5 py-0.5 w-7 text-center">{i + 1}</th>
+            ))}
+            <th className="border border-navy/30 px-0.5 py-0.5 w-7 text-center bg-navy-light">OUT</th>
+            {Array.from({ length: 9 }, (_, i) => (
+              <th key={i + 9} className="border border-navy/30 px-0.5 py-0.5 w-7 text-center">{i + 10}</th>
+            ))}
+            <th className="border border-navy/30 px-0.5 py-0.5 w-7 text-center bg-navy-light">IN</th>
+            <th className="border border-navy/30 px-0.5 py-0.5 w-7 text-center bg-gold text-navy">TOT</th>
+          </tr>
+        </thead>
+        <tbody>
+          {uniqueTees.map(tee => (
+            <YardageRow key={tee.id} label={tee.name} tee={tee} />
+          ))}
 
-            <tr className="bg-cream/50">
-              <td className="border border-cream-dark px-1 py-0.5 font-semibold text-sac-text-light">HCP</td>
-              {HOLE_HCP_INDEX.slice(0, 9).map((h, i) => (
-                <td key={i} className="border border-cream-dark px-1 py-0.5 text-center text-sac-text-light">{h}</td>
-              ))}
-              <td className="border border-cream-dark"></td>
-              {HOLE_HCP_INDEX.slice(9).map((h, i) => (
-                <td key={i} className="border border-cream-dark px-1 py-0.5 text-center text-sac-text-light">{h}</td>
-              ))}
-              <td className="border border-cream-dark"></td>
-              <td className="border border-cream-dark"></td>
-            </tr>
+          <tr className="bg-cream/50">
+            <td className="border border-cream-dark px-0.5 py-0.5 font-semibold text-sac-text-light">HCP</td>
+            {HOLE_HCP_INDEX.slice(0, 9).map((h, i) => (
+              <td key={i} className="border border-cream-dark px-0.5 py-0.5 text-center text-sac-text-light">{h}</td>
+            ))}
+            <td className="border border-cream-dark"></td>
+            {HOLE_HCP_INDEX.slice(9).map((h, i) => (
+              <td key={i} className="border border-cream-dark px-0.5 py-0.5 text-center text-sac-text-light">{h}</td>
+            ))}
+            <td className="border border-cream-dark"></td>
+            <td className="border border-cream-dark"></td>
+          </tr>
 
-            <tr className="bg-cream">
-              <td className="border border-cream-dark px-1 py-0.5 font-bold">PAR</td>
-              {tee1.holePars.slice(0, 9).map((p, i) => (
-                <td key={i} className="border border-cream-dark px-1 py-0.5 text-center font-bold">{p}</td>
-              ))}
-              <td className="border border-cream-dark px-1 py-0.5 text-center font-bold">{tee1.holePars.slice(0, 9).reduce((a, b) => a + b, 0)}</td>
-              {tee1.holePars.slice(9).map((p, i) => (
-                <td key={i} className="border border-cream-dark px-1 py-0.5 text-center font-bold">{p}</td>
-              ))}
-              <td className="border border-cream-dark px-1 py-0.5 text-center font-bold">{tee1.holePars.slice(9).reduce((a, b) => a + b, 0)}</td>
-              <td className="border border-cream-dark px-1 py-0.5 text-center font-bold bg-gold/20">{tee1.par}</td>
-            </tr>
+          <tr className="bg-cream">
+            <td className="border border-cream-dark px-0.5 py-0.5 font-bold">PAR</td>
+            {refTee.holePars.slice(0, 9).map((p, i) => (
+              <td key={i} className="border border-cream-dark px-0.5 py-0.5 text-center font-bold">{p}</td>
+            ))}
+            <td className="border border-cream-dark px-0.5 py-0.5 text-center font-bold">{refTee.holePars.slice(0, 9).reduce((a, b) => a + b, 0)}</td>
+            {refTee.holePars.slice(9).map((p, i) => (
+              <td key={i} className="border border-cream-dark px-0.5 py-0.5 text-center font-bold">{p}</td>
+            ))}
+            <td className="border border-cream-dark px-0.5 py-0.5 text-center font-bold">{refTee.holePars.slice(9).reduce((a, b) => a + b, 0)}</td>
+            <td className="border border-cream-dark px-0.5 py-0.5 text-center font-bold bg-gold/20">{refTee.par}</td>
+          </tr>
 
-            {isTeamFormat ? (
-              <ScorecardPlayerRow
+          {isScramble && (
+            <PlayerRows
+              name={`${p1.name.split(' ')[0]} & ${p2.name.split(' ')[0]}`}
+              hcp={teamHcp1} strokes={strokes1} color={color1} bg={bg1}
+            />
+          )}
+
+          {isShamble && (
+            <>
+              <PlayerRows
                 name={`${p1.name.split(' ')[0]} & ${p2.name.split(' ')[0]}`}
-                courseHcp={teamHcp}
-                strokes={strokes1}
-                colorClass="text-usa"
-                bgClass="bg-usa/5"
-                dotColor="text-usa"
+                hcp={teamHcp1} strokes={strokes1} color="text-usa" bg="bg-usa/5"
               />
-            ) : (
-              <>
-                <ScorecardPlayerRow
-                  name={p1.name}
-                  courseHcp={playingHcp1}
-                  strokes={strokes1}
-                  colorClass="text-usa"
-                  bgClass="bg-usa/5"
-                  dotColor="text-usa"
-                />
-                <ScorecardPlayerRow
-                  name={p2.name}
-                  courseHcp={playingHcp2}
-                  strokes={strokes2}
-                  colorClass="text-euro"
-                  bgClass="bg-euro/5"
-                  dotColor="text-euro"
-                />
-              </>
-            )}
+              <PlayerRows
+                name={`${ce1.name.split(' ')[0]} & ${ce2.name.split(' ')[0]}`}
+                hcp={teamHcp2} strokes={strokes2} color="text-euro" bg="bg-euro/5"
+              />
+            </>
+          )}
 
-            <tr className="bg-gold/10">
-              <td className="border border-cream-dark px-1 py-1 font-bold text-[10px]">MATCH</td>
-              {Array.from({ length: 9 }, (_, i) => (
-                <td key={i} className="border border-cream-dark px-1 py-1 text-center"></td>
-              ))}
-              <td className="border border-cream-dark px-1 py-1 text-center font-bold"></td>
-              {Array.from({ length: 9 }, (_, i) => (
-                <td key={i} className="border border-cream-dark px-1 py-1 text-center"></td>
-              ))}
-              <td className="border border-cream-dark px-1 py-1 text-center font-bold"></td>
-              <td className="border border-cream-dark px-1 py-1 text-center font-bold"></td>
-            </tr>
-          </tbody>
-        </table>
+          {isIndividual && (
+            <>
+              <PlayerRows name={p1.name} hcp={playHcp1} strokes={strokes1} color="text-usa" bg="bg-usa/5" />
+              <PlayerRows name={p2.name} hcp={playHcp2} strokes={strokes2} color="text-usa" bg="bg-usa/5" />
+              <PlayerRows name={ce1.name} hcp={playHcp3} strokes={strokes3} color="text-euro" bg="bg-euro/5" />
+              <PlayerRows name={ce2.name} hcp={playHcp4} strokes={strokes4} color="text-euro" bg="bg-euro/5" />
+            </>
+          )}
 
-        <div className="mt-2 flex items-center gap-4 text-[9px] text-sac-text-light">
-          <span>● = 1 stroke received</span>
-          <span>●● = 2 strokes received</span>
-          <span className="ml-auto">
-            {isTeamFormat
-              ? `Team HCP: ${teamHcp} (${roundInfo.desc})`
-              : `Playing HCP: ${p1.name.split(' ')[0]} (${playingHcp1}) | ${p2.name.split(' ')[0]} (${playingHcp2}) — 90% of course`
-            }
-          </span>
-        </div>
+          <tr className="bg-gold/10">
+            <td className="border border-cream-dark px-0.5 py-1 font-bold text-[9px]">MATCH</td>
+            {Array.from({ length: 9 }, (_, i) => (
+              <td key={i} className="border border-cream-dark px-0.5 py-1"></td>
+            ))}
+            <td className="border border-cream-dark px-0.5 py-1 font-bold"></td>
+            {Array.from({ length: 9 }, (_, i) => (
+              <td key={i} className="border border-cream-dark px-0.5 py-1"></td>
+            ))}
+            <td className="border border-cream-dark px-0.5 py-1 font-bold"></td>
+            <td className="border border-cream-dark px-0.5 py-1 font-bold"></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div className="mt-1 flex items-center gap-3 text-[8px] text-sac-text-light print:text-[7px]">
+        <span>● = 1 stroke</span>
+        <span>●● = 2 strokes</span>
+        <span className="ml-auto">{roundInfo.scoring} &middot; {roundInfo.desc}</span>
       </div>
     </div>
   );
 }
 
-function ScorecardYardageRow({ label, tee, colorClass }: { label: string; tee: TeeSet; colorClass: string }) {
+function YardageRow({ label, tee }: { label: string; tee: TeeSet }) {
   const front = tee.holeYardages.slice(0, 9);
   const back = tee.holeYardages.slice(9);
   return (
     <tr>
-      <td className={`border border-cream-dark px-1 py-0.5 font-semibold ${colorClass} text-[8px]`}>{label}</td>
+      <td className="border border-cream-dark px-0.5 py-0.5 font-semibold text-sac-text-light text-[7px]">{label}</td>
       {front.map((y, i) => (
-        <td key={i} className="border border-cream-dark px-1 py-0.5 text-center text-sac-text-light">{y}</td>
+        <td key={i} className="border border-cream-dark px-0.5 py-0.5 text-center text-sac-text-light">{y}</td>
       ))}
-      <td className="border border-cream-dark px-1 py-0.5 text-center font-semibold text-sac-text-light">{front.reduce((a, b) => a + b, 0)}</td>
+      <td className="border border-cream-dark px-0.5 py-0.5 text-center font-semibold text-sac-text-light">{front.reduce((a, b) => a + b, 0)}</td>
       {back.map((y, i) => (
-        <td key={i} className="border border-cream-dark px-1 py-0.5 text-center text-sac-text-light">{y}</td>
+        <td key={i} className="border border-cream-dark px-0.5 py-0.5 text-center text-sac-text-light">{y}</td>
       ))}
-      <td className="border border-cream-dark px-1 py-0.5 text-center font-semibold text-sac-text-light">{back.reduce((a, b) => a + b, 0)}</td>
-      <td className="border border-cream-dark px-1 py-0.5 text-center font-bold text-sac-text">{tee.totalYards}</td>
+      <td className="border border-cream-dark px-0.5 py-0.5 text-center font-semibold text-sac-text-light">{back.reduce((a, b) => a + b, 0)}</td>
+      <td className="border border-cream-dark px-0.5 py-0.5 text-center font-bold text-sac-text">{tee.totalYards}</td>
     </tr>
   );
 }
 
-function ScorecardPlayerRow({ name, courseHcp, strokes, colorClass, bgClass, dotColor }: {
-  name: string; courseHcp: number; strokes: Map<number, number>;
-  colorClass: string; bgClass: string; dotColor: string;
+function PlayerRows({ name, hcp, strokes, color, bg }: {
+  name: string; hcp: number; strokes: Map<number, number>;
+  color: string; bg: string;
 }) {
   return (
     <>
-      <tr className={bgClass}>
-        <td className={`border border-cream-dark px-1 py-0.5 font-bold ${colorClass} text-[8px]`}>
-          {name.split(' ')[0]}
+      {/* Strokes row */}
+      <tr className={bg}>
+        <td className={`border border-cream-dark px-0.5 py-0.5 font-bold ${color} text-[7px] truncate max-w-[56px]`}>
+          {name.length > 12 ? name.split(' ')[0] : name}
+          <span className="text-sac-text-light font-normal ml-0.5">({hcp})</span>
         </td>
         {Array.from({ length: 9 }, (_, i) => {
           const dots = strokes.get(i + 1) ?? 0;
-          return (
-            <td key={i} className={`border border-cream-dark px-1 py-0.5 text-center ${dotColor}`}>
-              {dots > 0 ? '●'.repeat(dots) : ''}
-            </td>
-          );
+          return <td key={i} className={`border border-cream-dark px-0.5 py-0.5 text-center ${color}`}>{dots > 0 ? '●'.repeat(dots) : ''}</td>;
         })}
-        <td className={`border border-cream-dark px-1 py-0.5 text-center font-bold ${colorClass}`}>
+        <td className={`border border-cream-dark px-0.5 py-0.5 text-center font-bold ${color}`}>
           {Array.from({ length: 9 }, (_, i) => strokes.get(i + 1) ?? 0).reduce((a, b) => a + b, 0) || ''}
         </td>
         {Array.from({ length: 9 }, (_, i) => {
           const dots = strokes.get(i + 10) ?? 0;
-          return (
-            <td key={i} className={`border border-cream-dark px-1 py-0.5 text-center ${dotColor}`}>
-              {dots > 0 ? '●'.repeat(dots) : ''}
-            </td>
-          );
+          return <td key={i} className={`border border-cream-dark px-0.5 py-0.5 text-center ${color}`}>{dots > 0 ? '●'.repeat(dots) : ''}</td>;
         })}
-        <td className={`border border-cream-dark px-1 py-0.5 text-center font-bold ${colorClass}`}>
+        <td className={`border border-cream-dark px-0.5 py-0.5 text-center font-bold ${color}`}>
           {Array.from({ length: 9 }, (_, i) => strokes.get(i + 10) ?? 0).reduce((a, b) => a + b, 0) || ''}
         </td>
-        <td className={`border border-cream-dark px-1 py-0.5 text-center font-bold ${colorClass}`}>{courseHcp}</td>
+        <td className={`border border-cream-dark px-0.5 py-0.5 text-center font-bold ${color}`}>{hcp}</td>
       </tr>
+      {/* Score row */}
       <tr>
-        <td className={`border border-cream-dark px-1 py-2 font-semibold ${colorClass} text-[8px]`}>Score</td>
-        {Array.from({ length: 9 }, (_, i) => (
-          <td key={i} className="border border-cream-dark px-1 py-2"></td>
-        ))}
-        <td className="border border-cream-dark px-1 py-2"></td>
-        {Array.from({ length: 9 }, (_, i) => (
-          <td key={i} className="border border-cream-dark px-1 py-2"></td>
-        ))}
-        <td className="border border-cream-dark px-1 py-2"></td>
-        <td className="border border-cream-dark px-1 py-2"></td>
+        <td className={`border border-cream-dark px-0.5 py-1.5 font-semibold ${color} text-[7px]`}>Score</td>
+        {Array.from({ length: 9 }, (_, i) => <td key={i} className="border border-cream-dark px-0.5 py-1.5"></td>)}
+        <td className="border border-cream-dark px-0.5 py-1.5"></td>
+        {Array.from({ length: 9 }, (_, i) => <td key={i} className="border border-cream-dark px-0.5 py-1.5"></td>)}
+        <td className="border border-cream-dark px-0.5 py-1.5"></td>
+        <td className="border border-cream-dark px-0.5 py-1.5"></td>
       </tr>
-      <tr className={bgClass}>
-        <td className={`border border-cream-dark px-1 py-1.5 font-semibold ${colorClass} text-[8px]`}>Net</td>
-        {Array.from({ length: 9 }, (_, i) => (
-          <td key={i} className="border border-cream-dark px-1 py-1.5"></td>
-        ))}
-        <td className="border border-cream-dark px-1 py-1.5"></td>
-        {Array.from({ length: 9 }, (_, i) => (
-          <td key={i} className="border border-cream-dark px-1 py-1.5"></td>
-        ))}
-        <td className="border border-cream-dark px-1 py-1.5"></td>
-        <td className="border border-cream-dark px-1 py-1.5"></td>
+      {/* Net row */}
+      <tr className={bg}>
+        <td className={`border border-cream-dark px-0.5 py-1 font-semibold ${color} text-[7px]`}>Net</td>
+        {Array.from({ length: 9 }, (_, i) => <td key={i} className="border border-cream-dark px-0.5 py-1"></td>)}
+        <td className="border border-cream-dark px-0.5 py-1"></td>
+        {Array.from({ length: 9 }, (_, i) => <td key={i} className="border border-cream-dark px-0.5 py-1"></td>)}
+        <td className="border border-cream-dark px-0.5 py-1"></td>
+        <td className="border border-cream-dark px-0.5 py-1"></td>
       </tr>
     </>
   );
