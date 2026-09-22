@@ -12,6 +12,7 @@ interface MatchDetail {
   opponentPoints: number;
   partnerNames: string[];
   opponentNames: string[];
+  netScore?: number;
 }
 
 interface Stats {
@@ -49,6 +50,13 @@ function getPlayerStats(player: Player, rounds: Round[], allPlayers: Player[]): 
       const mySide = onT1 ? match.team1 : match.team2;
       const oppSide = onT1 ? match.team2 : match.team1;
 
+      let netScore: number | undefined;
+      if (round.format === 'scramble') {
+        const total = match.holes.reduce((s, h) => s + (onT1 ? (h.team1Score ?? 0) : (h.team2Score ?? 0)), 0);
+        const par = match.holes.reduce((s, h) => s + h.par, 0);
+        netScore = total - par;
+      }
+
       details.push({
         round,
         match,
@@ -56,6 +64,7 @@ function getPlayerStats(player: Player, rounds: Round[], allPlayers: Player[]): 
         opponentPoints: oppPts,
         partnerNames: mySide.playerIds.filter(id => id !== player.id).map(name),
         opponentNames: oppSide.playerIds.map(name),
+        netScore,
       });
     }
   }
@@ -158,28 +167,52 @@ export default function PlayerStats() {
                           <p className="text-[10px] text-sac-text-light tracking-wider uppercase font-semibold">
                             {m.round.name} &middot; {FORMAT_LABELS[m.match.format]}
                           </p>
-                          <p className="text-xs text-sac-text mt-0.5 truncate">
-                            {m.partnerNames.length > 0 && (
-                              <span>w/ {m.partnerNames.join(', ')} </span>
-                            )}
-                            <span className="text-sac-text-light">vs </span>
-                            {m.opponentNames.join(' / ')}
-                          </p>
+                          {m.match.format === 'scramble' ? (
+                            <p className="text-xs text-sac-text mt-0.5 truncate">
+                              w/ {m.partnerNames.join(', ')}
+                              {m.netScore != null && (
+                                <span className="text-sac-text-light">
+                                  {' · '}{m.netScore > 0 ? `+${m.netScore}` : m.netScore === 0 ? 'E' : m.netScore}
+                                </span>
+                              )}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-sac-text mt-0.5 truncate">
+                              {m.partnerNames.length > 0 && (
+                                <span>w/ {m.partnerNames.join(', ')} </span>
+                              )}
+                              <span className="text-sac-text-light">vs </span>
+                              {m.opponentNames.join(' / ')}
+                            </p>
+                          )}
                         </div>
                         <div className="text-right shrink-0 ml-2">
-                          <span className={`font-display font-bold text-sm ${
-                            m.myPoints > m.opponentPoints ? 'text-green'
-                              : m.myPoints < m.opponentPoints ? 'text-sac-red'
-                              : 'text-sac-text'
-                          }`}>
-                            {m.myPoints % 1 === 0 ? m.myPoints : m.myPoints.toFixed(1)}
-                            <span className="text-sac-text-light font-normal">
-                              -{m.opponentPoints % 1 === 0 ? m.opponentPoints : m.opponentPoints.toFixed(1)}
-                            </span>
-                          </span>
-                          <p className="text-[10px] text-sac-text-light">
-                            {m.match.format === 'scramble' ? 'Field' : m.myPoints > m.opponentPoints ? 'W' : m.myPoints < m.opponentPoints ? 'L' : 'H'}
-                          </p>
+                          {m.match.format === 'scramble' ? (
+                            <>
+                              <span className={`font-display font-bold text-sm ${
+                                s.player.team === 'morning-woods' ? 'text-usa' : 'text-euro'
+                              }`}>
+                                {m.myPoints % 1 === 0 ? m.myPoints : m.myPoints.toFixed(1)}
+                              </span>
+                              <p className="text-[10px] text-sac-text-light">pts</p>
+                            </>
+                          ) : (
+                            <>
+                              <span className={`font-display font-bold text-sm ${
+                                m.myPoints > m.opponentPoints ? 'text-green'
+                                  : m.myPoints < m.opponentPoints ? 'text-sac-red'
+                                  : 'text-sac-text'
+                              }`}>
+                                {m.myPoints % 1 === 0 ? m.myPoints : m.myPoints.toFixed(1)}
+                                <span className="text-sac-text-light font-normal">
+                                  -{m.opponentPoints % 1 === 0 ? m.opponentPoints : m.opponentPoints.toFixed(1)}
+                                </span>
+                              </span>
+                              <p className="text-[10px] text-sac-text-light">
+                                {m.myPoints > m.opponentPoints ? 'W' : m.myPoints < m.opponentPoints ? 'L' : 'H'}
+                              </p>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
