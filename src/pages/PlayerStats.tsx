@@ -40,9 +40,11 @@ function getPlayerStats(player: Player, rounds: Round[], allPlayers: Player[]): 
       const oppPts = onT1 ? result.team2TotalPoints : result.team1TotalPoints;
       totalPoints += myPts;
 
-      if (myPts > oppPts) wins++;
-      else if (myPts < oppPts) losses++;
-      else halves++;
+      if (round.format !== 'scramble') {
+        if (myPts > oppPts) wins++;
+        else if (myPts < oppPts) losses++;
+        else halves++;
+      }
 
       const mySide = onT1 ? match.team1 : match.team2;
       const oppSide = onT1 ? match.team2 : match.team1;
@@ -124,7 +126,7 @@ export default function PlayerStats() {
                         <p className="font-semibold text-sm text-navy truncate">{s.player.name}</p>
                       </div>
                       <p className="text-[10px] text-sac-text-light">
-                        {TEAM_CONFIG[s.player.team].shortName} &middot; {s.player.handicap} HCP &middot; {s.matchesPlayed} matches
+                        {TEAM_CONFIG[s.player.team].shortName} &middot; {s.player.handicap} HCP &middot; {s.matches.length} rounds
                       </p>
                     </div>
                   </div>
@@ -176,7 +178,7 @@ export default function PlayerStats() {
                             </span>
                           </span>
                           <p className="text-[10px] text-sac-text-light">
-                            {m.myPoints > m.opponentPoints ? 'W' : m.myPoints < m.opponentPoints ? 'L' : 'H'}
+                            {m.match.format === 'scramble' ? 'Field' : m.myPoints > m.opponentPoints ? 'W' : m.myPoints < m.opponentPoints ? 'L' : 'H'}
                           </p>
                         </div>
                       </div>
