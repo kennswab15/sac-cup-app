@@ -6,7 +6,8 @@ import {
   subscribeToEvent, subscribeToRounds, subscribeToMatches,
   subscribeToPlayers, updateHoleScoreInFirestore, updateMatchStatusInFirestore,
 } from '@/lib/firestore';
-import { DEMO_EVENT, DEMO_PLAYERS } from '@/data/demo';
+import { DEMO_PLAYERS } from '@/data/demo';
+import { RECAP_2026_EVENT } from '@/data/recap2026';
 
 interface EventContextValue {
   event: SacEvent;
@@ -24,7 +25,7 @@ const EventContext = createContext<EventContextValue | null>(null);
 const EVENT_ID = 'sac-2027';
 
 export function EventProvider({ children }: { children: ReactNode }) {
-  const [event, setEvent] = useState<SacEvent>(DEMO_EVENT);
+  const [event, setEvent] = useState<SacEvent>(RECAP_2026_EVENT);
   const [players, setPlayers] = useState<Player[]>(DEMO_PLAYERS);
   const [loading, setLoading] = useState(isConfigured);
 
