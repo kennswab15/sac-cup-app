@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Calendar, ArrowRight, Trophy, Users, Calculator } from 'lucide-react';
+import { MapPin, Calendar, ArrowRight, Trophy, Users, Calculator, History } from 'lucide-react';
 import { useEvent } from '@/context/EventContext';
 import { getEventStandings, getLeaderTeam, calculateMatchResult, getRoundStandings } from '@/lib/scoring';
 import { FORMAT_LABELS, TEAM_CONFIG } from '@/lib/types';
@@ -34,7 +34,7 @@ export default function Home() {
             </div>
             <div className="text-center">
               <Calendar className="w-4 h-4 text-gold mx-auto mb-1" />
-              <p className="text-white/70 text-xs">Sept 17–19, 2026</p>
+              <p className="text-white/70 text-xs">Sept 17–18, 2027</p>
             </div>
           </div>
         </div>
@@ -167,6 +167,13 @@ export default function Home() {
           >
             <Calculator className="w-6 h-6 mx-auto mb-1 text-navy" />
             What-If
+          </Link>
+          <Link
+            to="/recap/2026"
+            className="bg-white text-navy rounded-xl p-4 text-center font-semibold text-sm shadow-md hover:bg-cream transition-colors border border-cream-dark"
+          >
+            <History className="w-6 h-6 mx-auto mb-1 text-navy" />
+            2026 Recap
           </Link>
         </div>
       </section>

@@ -12,6 +12,7 @@ import Admin from '@/pages/Admin';
 import Scorecards from '@/pages/Scorecards';
 import PlayerStats from '@/pages/PlayerStats';
 import Projections from '@/pages/Projections';
+import Recap2026 from '@/pages/Recap2026';
 
 function IdentityResolver({ children }: { children: React.ReactNode }) {
   const { players, loading } = useEvent();
@@ -63,6 +64,7 @@ export default function App() {
                 <Route path="/scorecards" element={<AdminGuard><Scorecards /></AdminGuard>} />
                 <Route path="/stats" element={<PlayerStats />} />
                 <Route path="/projections" element={<Projections />} />
+                <Route path="/recap/2026" element={<Recap2026 />} />
               </Route>
             </Routes>
           </IdentityResolver>

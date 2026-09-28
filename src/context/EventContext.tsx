@@ -21,7 +21,7 @@ interface EventContextValue {
 
 const EventContext = createContext<EventContextValue | null>(null);
 
-const EVENT_ID = 'sac-2026';
+const EVENT_ID = 'sac-2027';
 
 export function EventProvider({ children }: { children: ReactNode }) {
   const [event, setEvent] = useState<SacEvent>(DEMO_EVENT);
@@ -38,7 +38,12 @@ export function EventProvider({ children }: { children: ReactNode }) {
     let ready = { event: false, rounds: false, matches: false };
 
     function rebuild() {
-      if (!ready.event || !ready.rounds || !ready.matches || !eventMeta) return;
+      if (!ready.event || !ready.rounds || !ready.matches) return;
+
+      if (!eventMeta) {
+        setLoading(false);
+        return;
+      }
 
       const rounds: Round[] = roundsMeta.map(r => ({
         ...r,
